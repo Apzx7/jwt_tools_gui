@@ -6,7 +6,7 @@
 
 ## 报告漏洞
 
-如果您发现安全漏洞，请不要在GitHub上公开创建issue。请发送邮件至 [your-email@example.com]，并提供以下信息：
+如果您发现安全漏洞，请不要在GitHub上公开创建issue。请发送邮件至 [apzx77777@example.com]，并提供以下信息：
 
 - 漏洞类型
 - 漏洞描述
