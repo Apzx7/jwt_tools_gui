@@ -76,6 +76,12 @@ pip install PyJWT requests pycryptodomex cryptography
 - 使用字典文件进行字典攻击
 - 尝试特定密码
 - 使用密钥文件进行破解
+- 内置多种密码字典：
+  - `top500.txt`: 包含500个最常用密码
+  - `top1000.txt`: 包含1000个最常用密码
+  - `top3000.txt`: 包含3000个最常用密码
+  - `top6000.txt`: 包含6000个最常用密码
+  - `top19576.txt`: 包含19576个常用密码
 
 #### 漏洞利用
 - 实现alg:none漏洞利用
@@ -110,6 +116,11 @@ pip install PyJWT requests pycryptodomex cryptography
 - `README.md`: 说明文档
 - `requirements.txt`: 项目依赖列表
 - `test_jwt_gui.py`: 单元测试文件
+- `top500.txt`: 包含500个最常用密码的字典文件
+- `top1000.txt`: 包含1000个最常用密码的字典文件
+- `top3000.txt`: 包含3000个最常用密码的字典文件
+- `top6000.txt`: 包含6000个最常用密码的字典文件
+- `top19576.txt`: 包含19576个常用密码的字典文件
 
 ## 故障排除
 
