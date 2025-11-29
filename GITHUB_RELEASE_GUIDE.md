@@ -10,10 +10,9 @@
 ### 1. 添加远程仓库
 
 ```bash
-git remote add origin https://github.com/yourusername/jwt-gui.git
+git remote add origin https://github.com/apzx7/jwt-gui.git
 ```
 
-请将 `yourusername` 替换为您的GitHub用户名。
 
 ### 2. 推送到GitHub
 

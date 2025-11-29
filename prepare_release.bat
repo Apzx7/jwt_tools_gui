@@ -19,7 +19,7 @@ echo 3. 准备完成！
 echo.
 echo 接下来请执行以下步骤：
 echo 1. 在GitHub上创建新仓库
-echo 2. 添加远程仓库: git remote add origin https://github.com/yourusername/jwt-gui.git
+echo 2. 添加远程仓库: git remote add origin https://github.com/apzx7/jwt-gui.git
 echo 3. 提交代码: git add .
 echo 4. 提交更改: git commit -m "Initial release"
 echo 5. 推送到GitHub: git push -u origin main

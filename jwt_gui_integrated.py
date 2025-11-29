@@ -23,6 +23,34 @@ import uuid
 # JWT工具版本
 jwttoolvers = "2.3.0"
 
+# 日志文件路径
+LOG_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs.txt")
+
+# 日志记录函数
+def setLog(jwt, genTime, logID, modulename, targetURL, additional):
+    """记录日志到文件，参考jwt_tool.py中的实现"""
+    try:
+        logLine = genTime+" | "+modulename+" | "+targetURL+" | "+additional
+        with open(LOG_FILE_PATH, 'a', encoding='utf-8') as logFile:
+            logFile.write(logID+" - "+logLine+" - "+jwt+"\n")
+        return logID
+    except Exception as e:
+        print(f"记录日志时出错: {str(e)}")
+        return logID
+
+# Base64URL编码和解码函数
+def base64url_encode(input_bytes):
+    """Base64URL编码函数"""
+    if isinstance(input_bytes, str):
+        input_bytes = input_bytes.encode('utf-8')
+    return base64.urlsafe_b64encode(input_bytes).decode('utf-8').rstrip('=')
+
+def base64url_decode(input_str):
+    """Base64URL解码函数"""
+    # 添加填充字符
+    padding = '=' * (-len(input_str) % 4)
+    return base64.urlsafe_b64decode(input_str + padding)
+
 # 尝试导入加密库
 try:
     from Cryptodome.Signature import PKCS1_v1_5, DSS, pss
@@ -256,26 +284,47 @@ class JWToolCore:
             # 检查时间戳
             if 'exp' in payload:
                 try:
-                    exp = int(payload['exp'])
+                    exp = payload['exp']
+                    # 处理字符串类型的时间戳
+                    if isinstance(exp, str):
+                        exp = int(float(exp))
+                    elif not isinstance(exp, (int, float)):
+                        results.append("无效的过期时间格式")
+                        return results, "扫描完成"
+                        
                     if exp < time.time():
                         results.append("令牌已过期")
-                except:
+                except (ValueError, TypeError):
                     results.append("无效的过期时间")
                     
             if 'nbf' in payload:
                 try:
-                    nbf = int(payload['nbf'])
+                    nbf = payload['nbf']
+                    # 处理字符串类型的时间戳
+                    if isinstance(nbf, str):
+                        nbf = int(float(nbf))
+                    elif not isinstance(nbf, (int, float)):
+                        results.append("无效的生效时间格式")
+                        return results, "扫描完成"
+                        
                     if nbf > time.time():
                         results.append("令牌尚未生效")
-                except:
+                except (ValueError, TypeError):
                     results.append("无效的生效时间")
                     
             if 'iat' in payload:
                 try:
-                    iat = int(payload['iat'])
+                    iat = payload['iat']
+                    # 处理字符串类型的时间戳
+                    if isinstance(iat, str):
+                        iat = int(float(iat))
+                    elif not isinstance(iat, (int, float)):
+                        results.append("无效的签发时间格式")
+                        return results, "扫描完成"
+                        
                     if iat > time.time() + 300:  # 允许5分钟时钟偏差
                         results.append("签发时间在未来")
-                except:
+                except (ValueError, TypeError):
                     results.append("无效的签发时间")
                     
             # 检查签名
@@ -881,7 +930,9 @@ class JWTToolGUI:
         kid_frame = ttk.LabelFrame(exploit_frame, text="Kid注入攻击")
         kid_frame.pack(fill='x', padx=10, pady=10)
         
-        self.kid_attack_var = tk.StringVar(value="blank")
+        self.kid_attack_var = tk.StringVar(value="none")
+        ttk.Radiobutton(kid_frame, text="不启用", variable=self.kid_attack_var, 
+                       value="none").pack(anchor='w', padx=5, pady=2)
         ttk.Radiobutton(kid_frame, text="空白kid字段+null签名", variable=self.kid_attack_var, 
                        value="blank").pack(anchor='w', padx=5, pady=2)
         ttk.Radiobutton(kid_frame, text="路径遍历注入(/dev/null)", variable=self.kid_attack_var, 
@@ -1501,41 +1552,148 @@ class JWTToolGUI:
         self.key_conversion_result.insert(tk.END, "正在转换密钥格式...\n\n")
         
         try:
-            # 这里应该实现实际的密钥格式转换逻辑
-            # 由于涉及复杂的密码学操作，这里只提供一个模拟实现
-            
+            # 实现实际的密钥格式转换逻辑
             self.key_conversion_result.insert(tk.END, f"输入格式: {input_format}\n")
             self.key_conversion_result.insert(tk.END, f"输出格式: {output_format}\n")
             self.key_conversion_result.insert(tk.END, f"密钥类型: {key_type}\n\n")
             
-            # 模拟转换结果
+            # PEM到JWK的转换
             if input_format == "pem" and output_format == "jwk":
-                # 模拟PEM到JWK的转换
-                jwk_key = {
-                    "kty": key_type,
-                    "use": "sig",
-                    "alg": "RS256" if key_type == "RSA" else "ES256",
-                    "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-                    "e": "AQAB",
-                    "kid": "2011-04-29"
-                }
-                result = json.dumps(jwk_key, indent=2)
+                if key_type == "RSA":
+                    try:
+                        # 导入RSA密钥
+                        key = RSA.importKey(key_data)
+                        
+                        # 提取密钥参数
+                        if key.has_private():
+                            # 私钥
+                            n = base64.urlsafe_b64encode(key.n.to_bytes((key.n.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            e = base64.urlsafe_b64encode(key.e.to_bytes((key.e.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            d = base64.urlsafe_b64encode(key.d.to_bytes((key.d.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            p = base64.urlsafe_b64encode(key.p.to_bytes((key.p.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            q = base64.urlsafe_b64encode(key.q.to_bytes((key.q.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            
+                            jwk_key = {
+                                "kty": "RSA",
+                                "use": "sig",
+                                "alg": "RS256",
+                                "n": n,
+                                "e": e,
+                                "d": d,
+                                "p": p,
+                                "q": q,
+                                "kid": f"rsa_{int(time.time())}"
+                            }
+                        else:
+                            # 公钥
+                            n = base64.urlsafe_b64encode(key.n.to_bytes((key.n.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            e = base64.urlsafe_b64encode(key.e.to_bytes((key.e.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            
+                            jwk_key = {
+                                "kty": "RSA",
+                                "use": "sig",
+                                "alg": "RS256",
+                                "n": n,
+                                "e": e,
+                                "kid": f"rsa_{int(time.time())}"
+                            }
+                        
+                        result = json.dumps(jwk_key, indent=2)
+                    except Exception as e:
+                        self.key_conversion_result.insert(tk.END, f"RSA密钥解析失败: {str(e)}\n")
+                        return
+                
+                elif key_type == "EC":
+                    try:
+                        # 导入EC密钥
+                        key = ECC.import_key(key_data)
+                        
+                        if key.has_private():
+                            # 私钥
+                            crv = key.curve
+                            d = base64.urlsafe_b64encode(key.d.to_bytes((key.d.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            x = base64.urlsafe_b64encode(key.point.x.to_bytes((key.point.x.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            y = base64.urlsafe_b64encode(key.point.y.to_bytes((key.point.y.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            
+                            jwk_key = {
+                                "kty": "EC",
+                                "use": "sig",
+                                "alg": "ES256",
+                                "crv": crv,
+                                "x": x,
+                                "y": y,
+                                "d": d,
+                                "kid": f"ec_{int(time.time())}"
+                            }
+                        else:
+                            # 公钥
+                            crv = key.curve
+                            x = base64.urlsafe_b64encode(key.point.x.to_bytes((key.point.x.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            y = base64.urlsafe_b64encode(key.point.y.to_bytes((key.point.y.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                            
+                            jwk_key = {
+                                "kty": "EC",
+                                "use": "sig",
+                                "alg": "ES256",
+                                "crv": crv,
+                                "x": x,
+                                "y": y,
+                                "kid": f"ec_{int(time.time())}"
+                            }
+                        
+                        result = json.dumps(jwk_key, indent=2)
+                    except Exception as e:
+                        self.key_conversion_result.insert(tk.END, f"EC密钥解析失败: {str(e)}\n")
+                        return
             
+            # JWK到PEM的转换
             elif input_format == "jwk" and output_format == "pem":
-                # 模拟JWK到PEM的转换
-                result = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0vx7agoebGcQSuuPiLJ
-XZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6
-tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93
-lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9
-c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6W
-eZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJ
-zKnqDKgwIDAQAB
------END PUBLIC KEY-----"""
+                try:
+                    jwk_key = json.loads(key_data)
+                    
+                    if jwk_key.get("kty") == "RSA":
+                        # 构建RSA密钥参数
+                        if "d" in jwk_key:
+                            # 私钥
+                            n = int.from_bytes(base64.urlsafe_b64decode(jwk_key["n"] + "==="), byteorder='big')
+                            e = int.from_bytes(base64.urlsafe_b64decode(jwk_key["e"] + "==="), byteorder='big')
+                            d = int.from_bytes(base64.urlsafe_b64decode(jwk_key["d"] + "==="), byteorder='big')
+                            
+                            key = RSA.construct((n, e, d))
+                            result = key.exportKey(format="PEM").decode('utf-8')
+                        else:
+                            # 公钥
+                            n = int.from_bytes(base64.urlsafe_b64decode(jwk_key["n"] + "==="), byteorder='big')
+                            e = int.from_bytes(base64.urlsafe_b64decode(jwk_key["e"] + "==="), byteorder='big')
+                            
+                            key = RSA.construct((n, e))
+                            result = key.publickey().exportKey(format="PEM").decode('utf-8')
+                    
+                    elif jwk_key.get("kty") == "EC":
+                        # 构建EC密钥参数
+                        crv = jwk_key.get("crv", "P-256")
+                        x = int.from_bytes(base64.urlsafe_b64decode(jwk_key["x"] + "==="), byteorder='big')
+                        y = int.from_bytes(base64.urlsafe_b64decode(jwk_key["y"] + "==="), byteorder='big')
+                        
+                        if "d" in jwk_key:
+                            # 私钥
+                            d = int.from_bytes(base64.urlsafe_b64decode(jwk_key["d"] + "==="), byteorder='big')
+                            key = ECC.construct(curve=crv, point_x=x, point_y=y, d=d)
+                            result = key.export_key(format="PEM")
+                        else:
+                            # 公钥
+                            key = ECC.construct(curve=crv, point_x=x, point_y=y)
+                            result = key.public_key().export_key(format="PEM")
+                    
+                    else:
+                        result = f"不支持的JWK密钥类型: {jwk_key.get('kty')}"
+                
+                except Exception as e:
+                    self.key_conversion_result.insert(tk.END, f"JWK密钥解析失败: {str(e)}\n")
+                    return
             
             else:
-                # 其他格式的模拟转换
-                result = f"模拟转换结果:\n原始数据: {key_data[:50]}...\n转换后的{output_format}格式数据"
+                result = f"不支持的转换: 从{input_format}到{output_format}"
             
             self.key_conversion_result.insert(tk.END, "转换结果:\n")
             self.key_conversion_result.insert(tk.END, result)
@@ -1570,45 +1728,115 @@ zKnqDKgwIDAQAB
         generate_format = self.generate_format_var.get()
         
         try:
-            # 这里应该实现实际的密钥生成逻辑
-            # 由于涉及复杂的密码学操作，这里只提供一个模拟实现
-            
+            # 实现实际的密钥生成逻辑
             self.key_conversion_result.delete(1.0, tk.END)
             self.key_conversion_result.insert(tk.END, "正在生成新密钥...\n\n")
             self.key_conversion_result.insert(tk.END, f"密钥长度: {key_length}\n")
             self.key_conversion_result.insert(tk.END, f"密钥格式: {generate_format}\n\n")
             
-            # 模拟密钥生成
+            # 生成RSA密钥
             if generate_format == "pem":
-                # 模拟PEM格式密钥
-                private_key = f"""-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA{key_length}模拟生成的RSA私钥数据{key_length}
------END RSA PRIVATE KEY-----"""
+                # 生成RSA密钥对
+                key = RSA.generate(int(key_length))
                 
-                public_key = f"""-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥数据{key_length}
------END PUBLIC KEY-----"""
+                # 导出私钥
+                private_key = key.exportKey(format="PEM").decode('utf-8')
+                
+                # 导出公钥
+                public_key = key.publickey().exportKey(format="PEM").decode('utf-8')
                 
                 result = f"私钥:\n{private_key}\n\n公钥:\n{public_key}"
             
             elif generate_format == "jwk":
-                # 模拟JWK格式密钥
-                jwk_key = {
+                # 生成RSA密钥对
+                key = RSA.generate(int(key_length))
+                
+                # 提取密钥参数
+                n = base64.urlsafe_b64encode(key.n.to_bytes((key.n.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                e = base64.urlsafe_b64encode(key.e.to_bytes((key.e.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                d = base64.urlsafe_b64encode(key.d.to_bytes((key.d.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                p = base64.urlsafe_b64encode(key.p.to_bytes((key.p.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                q = base64.urlsafe_b64encode(key.q.to_bytes((key.q.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                
+                # 创建JWK格式的私钥
+                private_jwk = {
                     "kty": "RSA",
-                    "size": key_length,
+                    "size": int(key_length),
                     "use": "sig",
                     "alg": "RS256",
-                    "n": f"模拟生成的RSA模数_{key_length}位",
-                    "e": "AQAB",
-                    "d": f"模拟生成的RSA私钥指数_{key_length}位",
-                    "p": f"模拟生成的RSA素数p_{key_length}位",
-                    "q": f"模拟生成的RSA素数q_{key_length}位",
+                    "n": n,
+                    "e": e,
+                    "d": d,
+                    "p": p,
+                    "q": q,
                     "kid": f"generated_{int(time.time())}"
                 }
-                result = json.dumps(jwk_key, indent=2)
+                
+                # 创建JWK格式的公钥
+                public_jwk = {
+                    "kty": "RSA",
+                    "size": int(key_length),
+                    "use": "sig",
+                    "alg": "RS256",
+                    "n": n,
+                    "e": e,
+                    "kid": f"generated_{int(time.time())}"
+                }
+                
+                result = f"私钥(JWK):\n{json.dumps(private_jwk, indent=2)}\n\n公钥(JWK):\n{json.dumps(public_jwk, indent=2)}"
+            
+            elif generate_format == "ec":
+                # 生成EC密钥对
+                if key_length == "256":
+                    curve = "P-256"
+                elif key_length == "384":
+                    curve = "P-384"
+                elif key_length == "521":
+                    curve = "P-521"
+                else:
+                    curve = "P-256"  # 默认
+                
+                key = ECC.generate(curve=curve)
+                
+                if generate_format == "ec_pem":
+                    # 导出PEM格式
+                    private_key = key.export_key(format="PEM")
+                    public_key = key.public_key().export_key(format="PEM")
+                    result = f"私钥:\n{private_key}\n\n公钥:\n{public_key}"
+                else:
+                    # 导出JWK格式
+                    crv = key.curve
+                    d = base64.urlsafe_b64encode(key.d.to_bytes((key.d.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                    x = base64.urlsafe_b64encode(key.point.x.to_bytes((key.point.x.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                    y = base64.urlsafe_b64encode(key.point.y.to_bytes((key.point.y.bit_length() + 7) // 8, byteorder='big')).decode('UTF-8').rstrip("=")
+                    
+                    # 创建JWK格式的私钥
+                    private_jwk = {
+                        "kty": "EC",
+                        "use": "sig",
+                        "alg": f"ES{key_length}",
+                        "crv": crv,
+                        "x": x,
+                        "y": y,
+                        "d": d,
+                        "kid": f"ec_generated_{int(time.time())}"
+                    }
+                    
+                    # 创建JWK格式的公钥
+                    public_jwk = {
+                        "kty": "EC",
+                        "use": "sig",
+                        "alg": f"ES{key_length}",
+                        "crv": crv,
+                        "x": x,
+                        "y": y,
+                        "kid": f"ec_generated_{int(time.time())}"
+                    }
+                    
+                    result = f"私钥(JWK):\n{json.dumps(private_jwk, indent=2)}\n\n公钥(JWK):\n{json.dumps(public_jwk, indent=2)}"
             
             else:
-                result = f"模拟生成的{generate_format}格式密钥，长度{key_length}位"
+                result = f"不支持的密钥格式: {generate_format}"
             
             self.key_conversion_result.insert(tk.END, "密钥生成结果:\n")
             self.key_conversion_result.insert(tk.END, result)
@@ -1663,7 +1891,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
     def update_current_time(self):
         """更新当前时间戳信息"""
         now = int(time.time())
-        dt = datetime.datetime.fromtimestamp(now)
+        dt = datetime.fromtimestamp(now)
         self.current_time_label.config(text=f"当前时间戳: {now} ({dt.strftime('%Y-%m-%d %H:%M:%S')})")
     
     def execute_timestamp_operation(self):
@@ -1678,14 +1906,11 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         custom_timestamp = self.custom_timestamp_var.get()
         
         try:
-            parts = jwt_token.split('.')
-            if len(parts) != 3:
-                messagebox.showerror("错误", "无效的JWT格式")
+            # 使用正确的对象名称解析JWT
+            header, payload, signature, contents = self.jwt_tool.validateToken(jwt_token)
+            if not header:
+                messagebox.showerror("错误", "无效的JWT令牌")
                 return
-            
-            header = json.loads(base64url_decode(parts[0]))
-            payload = json.loads(base64url_decode(parts[1]))
-            signature = parts[2]
             
             # 计算新的时间戳
             if time_setting == "custom":
@@ -1734,15 +1959,17 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             
             if operation in payload:
                 old_timestamp = payload[operation]
-                if isinstance(old_timestamp, (int, float)):
-                    old_dt = datetime.datetime.fromtimestamp(old_timestamp)
+                try:
+                    # 确保时间戳是整数类型 - 参考jwt_tool.py的实现
+                    old_timestamp = int(old_timestamp)
+                    old_dt = datetime.fromtimestamp(old_timestamp)
                     self.timestamp_result.insert(tk.END, f"原始时间戳: {old_timestamp} ({old_dt.strftime('%Y-%m-%d %H:%M:%S')})\n")
-                else:
-                    self.timestamp_result.insert(tk.END, f"原始时间戳: {old_timestamp}\n")
+                except (ValueError, TypeError, OSError) as e:
+                    self.timestamp_result.insert(tk.END, f"原始时间戳: {payload[operation]} (解析错误: {str(e)})\n")
             else:
                 self.timestamp_result.insert(tk.END, f"原始时间戳: 不存在\n")
             
-            new_dt = datetime.datetime.fromtimestamp(new_timestamp)
+            new_dt = datetime.fromtimestamp(new_timestamp)
             self.timestamp_result.insert(tk.END, f"新时间戳: {new_timestamp} ({new_dt.strftime('%Y-%m-%d %H:%M:%S')})\n\n")
             
             self.timestamp_result.insert(tk.END, f"新JWT:\n{new_jwt}\n")
@@ -1763,14 +1990,11 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         step = self.batch_step_var.get()
         
         try:
-            parts = jwt_token.split('.')
-            if len(parts) != 3:
-                messagebox.showerror("错误", "无效的JWT格式")
+            # 使用正确的对象名称解析JWT
+            header, payload, signature, contents = self.jwt_tool.validateToken(jwt_token)
+            if not header:
+                messagebox.showerror("错误", "无效的JWT令牌")
                 return
-            
-            header = json.loads(base64url_decode(parts[0]))
-            payload = json.loads(base64url_decode(parts[1]))
-            signature = parts[2]
             
             # 解析偏移量
             def parse_offset(offset_str):
@@ -1813,7 +2037,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 new_payload = payload.copy()
                 new_payload[operation] = timestamp
                 new_jwt = f"{base64url_encode(json.dumps(header))}.{base64url_encode(json.dumps(new_payload))}.{signature}"
-                dt = datetime.datetime.fromtimestamp(timestamp)
+                dt = datetime.fromtimestamp(timestamp)
                 jwt_list.append((new_jwt, timestamp, dt.strftime('%Y-%m-%d %H:%M:%S')))
             
             # 显示结果
@@ -1864,7 +2088,6 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
     def refresh_logs(self):
         """刷新日志显示"""
         # 这里应该实现实际的日志刷新逻辑
-        # 由于涉及复杂的日志系统，这里只提供一个模拟实现
         
         self.log_display.delete(1.0, tk.END)
         self.log_display.insert(tk.END, "刷新日志:\n\n")
@@ -1924,24 +2147,75 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
     
     def update_log_stats(self):
         """更新日志统计"""
-        # 这里应该实现实际的日志统计逻辑
-        # 由于涉及复杂的日志系统，这里只提供一个模拟实现
-        
-        # 模拟统计数据
-        stats = {
-            "DEBUG": 15,
-            "INFO": 42,
-            "WARNING": 8,
-            "ERROR": 3,
-            "CRITICAL": 0,
-            "总计": 68
-        }
-        
-        stats_text = "日志统计:\n\n"
-        for level, count in stats.items():
-            stats_text += f"{level}: {count}\n"
-        
-        self.log_stats_label.config(text=stats_text)
+        try:
+            # 获取日志文件路径
+            log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs.txt")
+            
+            # 检查日志文件是否存在
+            if not os.path.exists(log_file_path):
+                self.log_stats_label.config(text="日志文件不存在")
+                return
+                
+            # 读取日志文件
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                log_lines = f.readlines()
+            
+            # 统计不同级别的日志数量
+            debug_count = 0
+            info_count = 0
+            warning_count = 0
+            error_count = 0
+            critical_count = 0
+            other_count = 0
+            
+            # 解析每行日志，提取级别信息
+            for line in log_lines:
+                # 我们需要从additional部分提取日志级别
+                if "|" in line:
+                    parts = line.split("|")
+                    if len(parts) >= 4:
+                        additional = parts[3].split("-")[0].strip()
+                        
+                        # 根据关键词判断日志级别
+                        if "DEBUG" in additional.upper():
+                            debug_count += 1
+                        elif "INFO" in additional.upper():
+                            info_count += 1
+                        elif "WARNING" in additional.upper():
+                            warning_count += 1
+                        elif "ERROR" in additional.upper():
+                            error_count += 1
+                        elif "CRITICAL" in additional.upper():
+                            critical_count += 1
+                        else:
+                            other_count += 1
+                else:
+                    other_count += 1
+            
+            # 计算总数
+            total_count = debug_count + info_count + warning_count + error_count + critical_count + other_count
+            
+            # 构建统计文本
+            stats_text = "日志统计:\n\n"
+            stats_text += f"DEBUG: {debug_count}\n"
+            stats_text += f"INFO: {info_count}\n"
+            stats_text += f"WARNING: {warning_count}\n"
+            stats_text += f"ERROR: {error_count}\n"
+            stats_text += f"CRITICAL: {critical_count}\n"
+            stats_text += f"其他: {other_count}\n"
+            stats_text += f"总计: {total_count}\n"
+            
+            # 添加文件信息
+            stats_text += f"\n日志文件: {log_file_path}\n"
+            stats_text += f"总行数: {len(log_lines)}\n"
+            
+            # 更新标签
+            self.log_stats_label.config(text=stats_text)
+            
+        except Exception as e:
+            error_msg = f"更新日志统计时出错: {str(e)}"
+            self.log_stats_label.config(text=error_msg)
+            print(error_msg)
     
     # GUI事件处理方法
     def parse_jwt(self):
@@ -1967,6 +2241,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         # 显示Signature
         self.signature_result.delete(1.0, tk.END)
         self.signature_result.insert(tk.END, signature)
+        
+        # 记录日志
+        genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+        additional = "INFO - JWT解析成功"
+        setLog(jwt, genTime, logID, "JWT解析", "本地GUI", additional)
         
         self.status_var.set("JWT解析完成")
     
@@ -2028,6 +2308,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             self.new_jwt_output.delete(1.0, tk.END)
             self.new_jwt_output.insert(tk.END, new_jwt)
             
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(new_jwt)).encode()).hexdigest()
+            additional = f"INFO - JWT生成成功，算法: {algorithm}"
+            setLog(new_jwt, genTime, logID, "JWT生成", "本地GUI", additional)
+            
             self.status_var.set("新JWT生成完成")
             
         except json.JSONDecodeError:
@@ -2068,6 +2354,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         result_text += f"验证方式: {method}"
         
         self.verify_result.insert(tk.END, result_text)
+        
+        # 记录日志
+        genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+        additional = f"INFO - JWT验证{'成功' if is_valid else '失败'}，算法: {algorithm}，验证方式: {method}"
+        setLog(jwt, genTime, logID, "JWT验证", "本地GUI", additional)
         
         self.status_var.set("签名验证完成")
     
@@ -2114,10 +2406,80 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         self.crack_result.delete(1.0, tk.END)
         self.crack_result.insert(tk.END, "开始字典攻击...\n")
         
-        success, message = self.jwt_tool.crackToken(jwt, dict_file)
+        # 解析JWT获取算法
+        header, payload, signature, contents = self.jwt_tool.validateToken(jwt)
+        if not header:
+            self.crack_result.insert(tk.END, "无效的JWT格式\n")
+            self.status_var.set("字典攻击失败")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+            additional = "ERROR - 字典攻击失败，无效的JWT格式"
+            setLog(jwt, genTime, logID, "JWT破解", "本地GUI", additional)
+            return
+            
+        algorithm = header.get('alg', 'HS256')
+        if not algorithm.startswith('HS'):
+            self.crack_result.insert(tk.END, f"不支持破解算法: {algorithm}\n")
+            self.status_var.set("字典攻击失败")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+            additional = f"ERROR - 字典攻击失败，不支持的算法: {algorithm}"
+            setLog(jwt, genTime, logID, "JWT破解", "本地GUI", additional)
+            return
         
-        self.crack_result.insert(tk.END, f"\n结果: {message}\n")
-        self.status_var.set("字典攻击完成")
+        try:
+            with open(dict_file, 'r', encoding='utf-8', errors='ignore') as f:
+                count = 0
+                for line in f:
+                    password = line.strip()
+                    if not password:
+                        continue
+                        
+                    count += 1
+                    if count % 100 == 0:  # 每尝试100个密码更新一次状态
+                        self.crack_result.delete(1.0, tk.END)
+                        self.crack_result.insert(tk.END, f"正在尝试第 {count} 个密码: {password[:20]}...\n")
+                        self.crack_result.update()  # 强制更新UI
+                        
+                    # 尝试使用当前密码验证签名
+                    is_valid, message = self.jwt_tool.verifyToken(jwt, password, algorithm)
+                    if is_valid:
+                        self.crack_result.delete(1.0, tk.END)
+                        self.crack_result.insert(tk.END, f"成功! 找到有效密钥: {password}\n")
+                        self.crack_result.insert(tk.END, f"尝试了 {count} 个密码\n")
+                        self.status_var.set("字典攻击成功")
+                        
+                        # 记录日志
+                        genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+                        additional = f"INFO - 字典攻击成功，找到有效密钥，尝试了 {count} 个密码"
+                        setLog(jwt, genTime, logID, "JWT破解", "本地GUI", additional)
+                        return
+                        
+                self.crack_result.delete(1.0, tk.END)
+                self.crack_result.insert(tk.END, f"失败: 字典中没有找到有效密钥\n")
+                self.crack_result.insert(tk.END, f"尝试了 {count} 个密码\n")
+                self.status_var.set("字典攻击完成")
+                
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+                additional = f"WARNING - 字典攻击完成，未找到有效密钥，尝试了 {count} 个密码"
+                setLog(jwt, genTime, logID, "JWT破解", "本地GUI", additional)
+                
+        except Exception as e:
+            self.crack_result.insert(tk.END, f"错误: {str(e)}\n")
+            self.status_var.set("字典攻击失败")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(jwt)).encode()).hexdigest()
+            additional = f"ERROR - 字典攻击出错: {str(e)}"
+            setLog(jwt, genTime, logID, "JWT破解", "本地GUI", additional)
     
     def crack_with_password(self, jwt, password):
         """使用特定密码破解JWT"""
@@ -2186,19 +2548,26 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
     
     def execute_exploit(self):
         """执行漏洞利用"""
-        jwt = self.jwt_input.get("1.0", tk.END).strip()
+        jwt = self.exploit_jwt_input.get("1.0", tk.END).strip()
         if not jwt:
             messagebox.showerror("错误", "请输入JWT令牌")
             return
             
-        exploit_type = self.exploit_type.get()
+        exploit_type = self.exploit_type_var.get()
         result_text = self.exploit_result
         
         result_text.delete("1.0", tk.END)
         
         try:
-            if exploit_type == "alg:none":
+            if exploit_type == "none":
                 new_jwt, message = self.jwt_tool.exploitNone(jwt)
+                if new_jwt:
+                    result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
+                else:
+                    result_text.insert(tk.END, message)
+                    
+            elif exploit_type == "null":
+                new_jwt, message = self.jwt_tool.exploitNull(jwt)
                 if new_jwt:
                     result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
                 else:
@@ -2220,7 +2589,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                     result_text.insert(tk.END, "Psychic签名漏洞利用失败")
                     
             elif exploit_type == "jwks":
-                jwks_url = self.jwks_url.get()
+                jwks_url = self.jwks_url_var.get()
                 if not jwks_url:
                     messagebox.showerror("错误", "请输入JWKS URL")
                     return
@@ -2231,8 +2600,8 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 else:
                     result_text.insert(tk.END, message)
                     
-            elif exploit_type == "keyconfusion":
-                pubkey_file = self.pubkey_file.get()
+            elif exploit_type == "confusion":
+                pubkey_file = self.pubkey_file_var.get()
                 if not pubkey_file:
                     messagebox.showerror("错误", "请选择公钥文件")
                     return
@@ -2243,7 +2612,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 else:
                     result_text.insert(tk.END, message)
                     
-            elif exploit_type == "inlinejwks":
+            elif exploit_type == "injwks":
                 new_jwt, message = self.jwt_tool.exploitInlineJwks(jwt)
                 if new_jwt:
                     result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
@@ -2279,7 +2648,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                     result_text.insert(tk.END, message)
                     
             elif exploit_type == "kidcustom":
-                custom_kid = self.custom_kid.get()
+                custom_kid = self.custom_kid_var.get()
                 if not custom_kid:
                     messagebox.showerror("错误", "请输入自定义kid值")
                     return
@@ -2291,7 +2660,36 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                     result_text.insert(tk.END, message)
                     
             else:
-                result_text.insert(tk.END, "请选择漏洞利用类型")
+                # 检查是否是kid注入攻击
+                kid_attack_type = self.kid_attack_var.get()
+                if kid_attack_type == "none":
+                    result_text.insert(tk.END, "未启用Kid注入攻击")
+                elif kid_attack_type == "blank":
+                    new_jwt, message = self.jwt_tool.exploitKidBlank(jwt)
+                    if new_jwt:
+                        result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
+                    else:
+                        result_text.insert(tk.END, message)
+                elif kid_attack_type == "path":
+                    new_jwt, message = self.jwt_tool.exploitKidPath(jwt)
+                    if new_jwt:
+                        result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
+                    else:
+                        result_text.insert(tk.END, message)
+                elif kid_attack_type == "rce":
+                    new_jwt, message = self.jwt_tool.exploitKidRce(jwt)
+                    if new_jwt:
+                        result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
+                    else:
+                        result_text.insert(tk.END, message)
+                elif kid_attack_type == "sql":
+                    new_jwt, message = self.jwt_tool.exploitKidSql(jwt)
+                    if new_jwt:
+                        result_text.insert(tk.END, f"{message}\n\n生成的JWT:\n{new_jwt}")
+                    else:
+                        result_text.insert(tk.END, message)
+                else:
+                    result_text.insert(tk.END, "请选择漏洞利用类型")
                 
         except Exception as e:
             result_text.insert(tk.END, f"漏洞利用失败: {str(e)}")
@@ -2332,8 +2730,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 self.request_result.insert(tk.END, f"状态码: {result['status_code']}\n")
                 self.request_result.insert(tk.END, f"响应头: {json.dumps(result['headers'], indent=2)}\n")
                 self.request_result.insert(tk.END, f"响应内容:\n{result['content']}\n")
+                
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(url)).encode()).hexdigest()
+                additional = f"INFO - HTTP请求成功，状态码: {result['status_code']}，方法: {method}"
+                setLog(url, genTime, logID, "HTTP请求", "本地GUI", additional)
             else:
                 self.request_result.insert(tk.END, f"请求失败: {result}\n")
+                
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(url)).encode()).hexdigest()
+                additional = f"ERROR - HTTP请求失败，方法: {method}，错误: {result}"
+                setLog(url, genTime, logID, "HTTP请求", "本地GUI", additional)
                 
             self.status_var.set("HTTP请求完成")
             
@@ -2341,6 +2751,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             self.request_result.delete(1.0, tk.END)
             self.request_result.insert(tk.END, f"请求出错: {str(e)}\n")
             self.status_var.set("HTTP请求失败")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(url)).encode()).hexdigest()
+            additional = f"ERROR - HTTP请求异常，方法: {method}，异常: {str(e)}"
+            setLog(url, genTime, logID, "HTTP请求", "本地GUI", additional)
     
     def save_settings(self):
         """保存设置"""
@@ -2682,8 +3098,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 except json.JSONDecodeError:
                     self.key_output.insert(tk.END, "无效的JWK格式密钥\n")
                     
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(input_format+output_format)).encode()).hexdigest()
+            additional = f"INFO - 密钥格式转换成功，输入格式: {input_format}，输出格式: {output_format}"
+            setLog(f"{input_format}→{output_format}", genTime, logID, "密钥格式转换", "本地GUI", additional)
+                    
         except Exception as e:
             self.key_output.insert(tk.END, f"转换密钥时出错: {str(e)}\n")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(input_format+output_format)).encode()).hexdigest()
+            additional = f"ERROR - 密钥格式转换失败，输入格式: {input_format}，输出格式: {output_format}，错误: {str(e)}"
+            setLog(f"{input_format}→{output_format}", genTime, logID, "密钥格式转换", "本地GUI", additional)
             
         self.key_output.config(state=tk.DISABLED)
         
@@ -2751,8 +3179,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 self.key_output.insert(tk.END, f'  "alg": "ES{key_size}"\n')
                 self.key_output.insert(tk.END, "}\n")
                 
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(key_type+str(key_size))).encode()).hexdigest()
+            additional = f"INFO - 密钥生成成功，类型: {key_type}，大小: {key_size}位"
+            setLog(f"{key_type}-{key_size}", genTime, logID, "密钥生成", "本地GUI", additional)
+                
         except Exception as e:
             self.key_output.insert(tk.END, f"生成密钥时出错: {str(e)}\n")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(key_type+str(key_size))).encode()).hexdigest()
+            additional = f"ERROR - 密钥生成失败，类型: {key_type}，大小: {key_size}位，错误: {str(e)}"
+            setLog(f"{key_type}-{key_size}", genTime, logID, "密钥生成", "本地GUI", additional)
             
         self.key_output.config(state=tk.DISABLED)
         
@@ -2769,72 +3209,140 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         self.timestamp_result.config(state=tk.NORMAL)
         self.timestamp_result.delete("1.0", tk.END)
         
-        # 解析JWT
-        header, payload, signature, contents = self.jwt_core.validateToken(jwt_token)
+        # 解析JWT - 使用正确的对象名称
+        header, payload, signature, contents = self.jwt_tool.validateToken(jwt_token)
         if not header:
             self.timestamp_result.insert(tk.END, "无效的JWT令牌\n")
             self.timestamp_result.config(state=tk.DISABLED)
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+            additional = "ERROR - 时间戳JWT解析失败，无效的JWT令牌"
+            setLog("时间戳解析", genTime, logID, "时间戳操作", "本地GUI", additional)
             return
             
         self.timestamp_result.insert(tk.END, f"JWT解析结果:\n\n")
         self.timestamp_result.insert(tk.END, f"Header: {json.dumps(header, indent=2)}\n\n")
         self.timestamp_result.insert(tk.END, f"Payload: {json.dumps(payload, indent=2)}\n\n")
         
-        # 分析时间戳相关声明
+        # 分析时间戳相关声明 - 参考jwt_tool.py的dissectPayl函数
         self.timestamp_result.insert(tk.END, "时间戳声明分析:\n\n")
         
         current_time = int(time.time())
         current_datetime = datetime.fromtimestamp(current_time)
+        self.timestamp_result.insert(tk.END, f"当前时间: {current_datetime} (时间戳: {current_time})\n\n")
         
-        # 检查exp (Expiration Time)
+        # 检查exp (Expiration Time) - 参考jwt_tool.py的实现
         if 'exp' in payload:
-            exp_time = payload['exp']
-            exp_datetime = datetime.fromtimestamp(exp_time)
-            is_expired = current_time > exp_time
-            time_remaining = exp_time - current_time
+            try:
+                exp_time = int(payload['exp'])  # 确保转换为整数
+                exp_datetime = datetime.fromtimestamp(exp_time)
+                is_expired = exp_time < current_time
+                time_remaining = exp_time - current_time
+                
+                self.timestamp_result.insert(tk.END, f"exp (过期时间): {payload['exp']}\n")
+                self.timestamp_result.insert(tk.END, f"  对应时间: {exp_datetime.strftime('%Y-%m-%d %H:%M:%S')} (UTC)\n")
+                
+                if is_expired:
+                    self.timestamp_result.insert(tk.END, f"  状态: 已过期\n")
+                else:
+                    self.timestamp_result.insert(tk.END, f"  状态: 有效\n")
+                    hours, remainder = divmod(time_remaining, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    self.timestamp_result.insert(tk.END, f"  剩余时间: {int(hours)}小时 {int(minutes)}分钟 {int(seconds)}秒\n")
+                self.timestamp_result.insert(tk.END, "\n")
+            except (ValueError, TypeError, OSError) as e:
+                self.timestamp_result.insert(tk.END, f"exp (过期时间): {payload['exp']} (解析错误: {str(e)})\n\n")
             
-            self.timestamp_result.insert(tk.END, f"exp (过期时间): {exp_time}\n")
-            self.timestamp_result.insert(tk.END, f"  对应时间: {exp_datetime}\n")
-            self.timestamp_result.insert(tk.END, f"  当前时间: {current_datetime}\n")
-            self.timestamp_result.insert(tk.END, f"  是否过期: {'是' if is_expired else '否'}\n")
-            if not is_expired:
-                hours, remainder = divmod(time_remaining, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                self.timestamp_result.insert(tk.END, f"  剩余时间: {hours}小时 {minutes}分钟 {seconds}秒\n")
-            self.timestamp_result.insert(tk.END, "\n")
-            
-        # 检查nbf (Not Before)
+        # 检查nbf (Not Before) - 参考jwt_tool.py的实现
         if 'nbf' in payload:
-            nbf_time = payload['nbf']
-            nbf_datetime = datetime.fromtimestamp(nbf_time)
-            is_valid = current_time >= nbf_time
-            time_until = nbf_time - current_time
+            try:
+                nbf_time = int(payload['nbf'])  # 确保转换为整数
+                nbf_datetime = datetime.fromtimestamp(nbf_time)
+                is_valid = current_time >= nbf_time
+                time_until = nbf_time - current_time
+                
+                self.timestamp_result.insert(tk.END, f"nbf (生效时间): {payload['nbf']}\n")
+                self.timestamp_result.insert(tk.END, f"  对应时间: {nbf_datetime.strftime('%Y-%m-%d %H:%M:%S')} (UTC)\n")
+                
+                if is_valid:
+                    self.timestamp_result.insert(tk.END, f"  状态: 已生效\n")
+                else:
+                    self.timestamp_result.insert(tk.END, f"  状态: 尚未生效\n")
+                    hours, remainder = divmod(time_until, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    self.timestamp_result.insert(tk.END, f"  距离生效: {int(hours)}小时 {int(minutes)}分钟 {int(seconds)}秒\n")
+                self.timestamp_result.insert(tk.END, "\n")
+            except (ValueError, TypeError, OSError) as e:
+                self.timestamp_result.insert(tk.END, f"nbf (生效时间): {payload['nbf']} (解析错误: {str(e)})\n\n")
             
-            self.timestamp_result.insert(tk.END, f"nbf (生效时间): {nbf_time}\n")
-            self.timestamp_result.insert(tk.END, f"  对应时间: {nbf_datetime}\n")
-            self.timestamp_result.insert(tk.END, f"  当前时间: {current_datetime}\n")
-            self.timestamp_result.insert(tk.END, f"  是否生效: {'是' if is_valid else '否'}\n")
-            if not is_valid:
-                hours, remainder = divmod(time_until, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                self.timestamp_result.insert(tk.END, f"  距离生效: {hours}小时 {minutes}分钟 {seconds}秒\n")
-            self.timestamp_result.insert(tk.END, "\n")
-            
-        # 检查iat (Issued At)
+        # 检查iat (Issued At) - 参考jwt_tool.py的实现
         if 'iat' in payload:
-            iat_time = payload['iat']
-            iat_datetime = datetime.fromtimestamp(iat_time)
-            time_elapsed = current_time - iat_time
+            try:
+                iat_time = int(payload['iat'])  # 确保转换为整数
+                iat_datetime = datetime.fromtimestamp(iat_time)
+                time_elapsed = current_time - iat_time
+                
+                self.timestamp_result.insert(tk.END, f"iat (签发时间): {payload['iat']}\n")
+                self.timestamp_result.insert(tk.END, f"  对应时间: {iat_datetime.strftime('%Y-%m-%d %H:%M:%S')} (UTC)\n")
+                
+                hours, remainder = divmod(time_elapsed, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                self.timestamp_result.insert(tk.END, f"  已经过去: {int(hours)}小时 {int(minutes)}分钟 {int(seconds)}秒\n")
+                self.timestamp_result.insert(tk.END, "\n")
+            except (ValueError, TypeError, OSError) as e:
+                self.timestamp_result.insert(tk.END, f"iat (签发时间): {payload['iat']} (解析错误: {str(e)})\n\n")
+        
+        # 时间戳比较分析 - 参考jwt_tool.py的实现
+        timestamp_claims = []
+        for claim in ['exp', 'nbf', 'iat']:
+            if claim in payload:
+                timestamp_claims.append(claim)
+                
+        if len(timestamp_claims) >= 2:
+            self.timestamp_result.insert(tk.END, "时间戳比较分析:\n")
+            base_claim = timestamp_claims[0]
+            base_time = int(payload[base_claim])
             
-            self.timestamp_result.insert(tk.END, f"iat (签发时间): {iat_time}\n")
-            self.timestamp_result.insert(tk.END, f"  对应时间: {iat_datetime}\n")
-            self.timestamp_result.insert(tk.END, f"  当前时间: {current_datetime}\n")
-            hours, remainder = divmod(time_elapsed, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            self.timestamp_result.insert(tk.END, f"  已经过去: {hours}小时 {minutes}分钟 {seconds}秒\n")
+            for claim in timestamp_claims[1:]:
+                try:
+                    claim_time = int(payload[claim])
+                    time_diff = claim_time - base_time
+                    
+                    if time_diff < 0:
+                        time_diff = -time_diff
+                        relation = f"{claim} 早于 {base_claim}"
+                    else:
+                        relation = f"{claim} 晚于 {base_claim}"
+                        
+                    days, remainder = divmod(time_diff, 86400)
+                    hours, remainder = divmod(remainder, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    
+                    time_str = ""
+                    if days > 0:
+                        time_str += f"{int(days)}天 "
+                    if hours > 0:
+                        time_str += f"{int(hours)}小时 "
+                    if minutes > 0:
+                        time_str += f"{int(minutes)}分钟 "
+                    if seconds > 0 or not time_str:
+                        time_str += f"{int(seconds)}秒"
+                        
+                    self.timestamp_result.insert(tk.END, f"  {relation}: {time_str}\n")
+                except (ValueError, TypeError):
+                    self.timestamp_result.insert(tk.END, f"  无法比较 {claim} 和 {base_claim}\n")
+                    
             self.timestamp_result.insert(tk.END, "\n")
             
         self.timestamp_result.config(state=tk.DISABLED)
+        
+        # 记录日志
+        genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+        additional = f"INFO - 时间戳JWT解析成功，包含声明: {', '.join(timestamp_claims) if timestamp_claims else '无时间戳声明'}"
+        setLog("时间戳解析", genTime, logID, "时间戳操作", "本地GUI", additional)
         
     def modify_timestamps(self):
         """修改时间戳"""
@@ -2846,9 +3354,15 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             return
             
         # 解析JWT
-        header, payload, signature, contents = self.jwt_core.validateToken(jwt_token)
+        header, payload, signature, contents = self.jwt_tool.validateToken(jwt_token)
         if not header:
             messagebox.showerror("错误", "无效的JWT令牌")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+            additional = f"ERROR - 时间戳修改失败，无效的JWT令牌，操作: {operation}"
+            setLog("时间戳修改", genTime, logID, "时间戳操作", "本地GUI", additional)
             return
             
         # 修改时间戳
@@ -2885,7 +3399,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             modified_payload['iat'] = current_time
             
         # 生成新的JWT
-        new_jwt = self.jwt_core.signToken(header, modified_payload, 'test_key', 'HS256')
+        new_jwt = self.jwt_tool.signToken(header, modified_payload, 'test_key', 'HS256')
         
         if new_jwt:
             # 显示修改后的JWT
@@ -2894,8 +3408,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             self.timestamp_result.insert(tk.END, "修改后的JWT:\n\n")
             self.timestamp_result.insert(tk.END, new_jwt)
             self.timestamp_result.config(state=tk.DISABLED)
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+            additional = f"INFO - 时间戳修改成功，操作: {operation}"
+            setLog("时间戳修改", genTime, logID, "时间戳操作", "本地GUI", additional)
         else:
             messagebox.showerror("错误", "生成修改后的JWT失败")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+            additional = f"ERROR - 生成修改后的JWT失败，操作: {operation}"
+            setLog("时间戳修改", genTime, logID, "时间戳操作", "本地GUI", additional)
             
     def batch_timestamp_operations(self):
         """批量时间戳操作"""
@@ -2906,9 +3432,15 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             return
             
         # 解析JWT
-        header, payload, signature, contents = self.jwt_core.validateToken(jwt_token)
+        header, payload, signature, contents = self.jwt_tool.validateToken(jwt_token)
         if not header:
             messagebox.showerror("错误", "无效的JWT令牌")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+            additional = "ERROR - 批量时间戳操作失败，无效的JWT令牌"
+            setLog("批量时间戳操作", genTime, logID, "时间戳操作", "本地GUI", additional)
             return
             
         # 清空结果区域
@@ -2919,6 +3451,8 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         
         # 生成多个不同时间戳的JWT
         current_time = int(time.time())
+        success_count = 0
+        total_operations = 6
         
         # 1. 原始JWT
         self.timestamp_result.insert(tk.END, "1. 原始JWT:\n")
@@ -2935,6 +3469,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         if extended_jwt:
             self.timestamp_result.insert(tk.END, "2. 延长过期时间(24小时):\n")
             self.timestamp_result.insert(tk.END, f"   {extended_jwt}\n\n")
+            success_count += 1
             
         # 3. 移除过期时间
         modified_payload = payload.copy()
@@ -2945,6 +3480,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         if no_exp_jwt:
             self.timestamp_result.insert(tk.END, "3. 移除过期时间:\n")
             self.timestamp_result.insert(tk.END, f"   {no_exp_jwt}\n\n")
+            success_count += 1
             
         # 4. 设置为已过期
         modified_payload = payload.copy()
@@ -2954,6 +3490,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         if expired_jwt:
             self.timestamp_result.insert(tk.END, "4. 设置为已过期(1小时前):\n")
             self.timestamp_result.insert(tk.END, f"   {expired_jwt}\n\n")
+            success_count += 1
             
         # 5. 设置为未来生效
         modified_payload = payload.copy()
@@ -2963,6 +3500,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         if future_nbf_jwt:
             self.timestamp_result.insert(tk.END, "5. 设置为未来生效(1小时后):\n")
             self.timestamp_result.insert(tk.END, f"   {future_nbf_jwt}\n\n")
+            success_count += 1
             
         # 6. 刷新签发时间
         modified_payload = payload.copy()
@@ -2972,8 +3510,15 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         if refreshed_jwt:
             self.timestamp_result.insert(tk.END, "6. 刷新签发时间(当前时间):\n")
             self.timestamp_result.insert(tk.END, f"   {refreshed_jwt}\n\n")
+            success_count += 1
             
         self.timestamp_result.config(state=tk.DISABLED)
+        
+        # 记录日志
+        genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logID = "jwttool_"+hashlib.md5((genTime+jwt_token[:10]).encode()).hexdigest()
+        additional = f"INFO - 批量时间戳操作完成，成功: {success_count}/{total_operations}"
+        setLog("批量时间戳操作", genTime, logID, "时间戳操作", "本地GUI", additional)
         
     # 日志记录系统事件处理
     def configure_logging(self):
@@ -3028,8 +3573,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 
             messagebox.showinfo("成功", "日志系统配置成功")
             
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+log_level).encode()).hexdigest()
+            additional = f"INFO - 日志系统配置成功，级别: {log_level}，文件: {log_file if log_file else '未指定'}"
+            setLog("日志配置", genTime, logID, "日志系统", "本地GUI", additional)
+            
         except Exception as e:
             messagebox.showerror("错误", f"配置日志系统失败: {str(e)}")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+log_level).encode()).hexdigest()
+            additional = f"ERROR - 日志系统配置失败，级别: {log_level}，错误: {str(e)}"
+            setLog("日志配置", genTime, logID, "日志系统", "本地GUI", additional)
             
     def view_logs(self):
         """查看日志"""
@@ -3037,6 +3594,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         
         if not log_file or not os.path.exists(log_file):
             messagebox.showerror("错误", "日志文件不存在或未指定")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = "ERROR - 查看日志失败，日志文件不存在或未指定"
+            setLog("日志查看", genTime, logID, "日志系统", "本地GUI", additional)
             return
             
         try:
@@ -3050,8 +3613,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             self.log_display.insert(tk.END, log_content)
             self.log_display.config(state=tk.DISABLED)
             
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = f"INFO - 查看日志成功，文件: {log_file}，行数: {len(log_content.splitlines())}"
+            setLog("日志查看", genTime, logID, "日志系统", "本地GUI", additional)
+            
         except Exception as e:
             messagebox.showerror("错误", f"读取日志文件失败: {str(e)}")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = f"ERROR - 读取日志文件失败，文件: {log_file}，错误: {str(e)}"
+            setLog("日志查看", genTime, logID, "日志系统", "本地GUI", additional)
             
     def clear_logs(self):
         """清空日志"""
@@ -3059,6 +3634,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         
         if not log_file:
             messagebox.showerror("错误", "未指定日志文件")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = "ERROR - 清空日志失败，未指定日志文件"
+            setLog("日志清空", genTime, logID, "日志系统", "本地GUI", additional)
             return
             
         result = messagebox.askyesno("确认", "确定要清空日志文件吗？")
@@ -3075,8 +3656,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                 
                 messagebox.showinfo("成功", "日志文件已清空")
                 
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+                additional = f"INFO - 日志文件已清空，文件: {log_file}"
+                setLog("日志清空", genTime, logID, "日志系统", "本地GUI", additional)
+                
             except Exception as e:
                 messagebox.showerror("错误", f"清空日志文件失败: {str(e)}")
+                
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+                additional = f"ERROR - 清空日志文件失败，文件: {log_file}，错误: {str(e)}"
+                setLog("日志清空", genTime, logID, "日志系统", "本地GUI", additional)
                 
     def export_logs(self):
         """导出日志"""
@@ -3084,6 +3677,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         
         if not log_file or not os.path.exists(log_file):
             messagebox.showerror("错误", "日志文件不存在或未指定")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = "ERROR - 导出日志失败，日志文件不存在或未指定"
+            setLog("日志导出", genTime, logID, "日志系统", "本地GUI", additional)
             return
             
         # 选择导出文件
@@ -3105,8 +3704,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
                     
                 messagebox.showinfo("成功", f"日志已导出到: {export_file}")
                 
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+                additional = f"INFO - 日志已导出，源文件: {log_file}，目标文件: {export_file}，行数: {len(log_content.splitlines())}"
+                setLog("日志导出", genTime, logID, "日志系统", "本地GUI", additional)
+                
             except Exception as e:
                 messagebox.showerror("错误", f"导出日志失败: {str(e)}")
+                
+                # 记录日志
+                genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+                additional = f"ERROR - 导出日志失败，源文件: {log_file}，错误: {str(e)}"
+                setLog("日志导出", genTime, logID, "日志系统", "本地GUI", additional)
                 
     def show_log_statistics(self):
         """显示日志统计"""
@@ -3114,6 +3725,12 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
         
         if not log_file or not os.path.exists(log_file):
             messagebox.showerror("错误", "日志文件不存在或未指定")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = "ERROR - 显示日志统计失败，日志文件不存在或未指定"
+            setLog("日志统计", genTime, logID, "日志系统", "本地GUI", additional)
             return
             
         try:
@@ -3147,8 +3764,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA{key_length}模拟生成的RSA公钥
             
             stats_text.config(state=tk.DISABLED)
             
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = f"INFO - 日志统计完成，总行数: {len(log_lines)}，DEBUG: {debug_count}，INFO: {info_count}，WARNING: {warning_count}，ERROR: {error_count}，CRITICAL: {critical_count}"
+            setLog("日志统计", genTime, logID, "日志系统", "本地GUI", additional)
+            
         except Exception as e:
             messagebox.showerror("错误", f"显示日志统计失败: {str(e)}")
+            
+            # 记录日志
+            genTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logID = "jwttool_"+hashlib.md5((genTime+str(log_file)).encode()).hexdigest()
+            additional = f"ERROR - 显示日志统计失败，文件: {log_file}，错误: {str(e)}"
+            setLog("日志统计", genTime, logID, "日志系统", "本地GUI", additional)
 
 
 # 主程序
