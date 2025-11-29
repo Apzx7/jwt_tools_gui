@@ -12,12 +12,19 @@
 - 密钥格式转换功能
 - 高级时间戳操作功能
 - 日志记录系统
+- GitHub Actions自动化测试
+- 详细的发布指南
 
 ### 改进
 - 优化用户界面
 - 提高代码可读性和可维护性
+- 添加更全面的文档
 
-## [1.0.0] - 2023-XX-XX
+### 修复
+- 修复GUI启动问题
+- 优化依赖版本兼容性
+
+## [1.0.0] - 2023-11-15
 
 ### 新增
 - JWT解析功能
@@ -36,7 +43,7 @@
 ### 系统要求
 - Python 3.6+
 - tkinter库
-- PyJWT
-- requests
-- pycryptodomex
-- cryptography
+- PyJWT>=2.0.0
+- requests>=2.25.0
+- pycryptodomex>=3.10.0
+- cryptography>=3.4.0

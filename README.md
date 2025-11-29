@@ -44,10 +44,8 @@ pip install PyJWT requests pycryptodomex cryptography
 
 ### 启动方式
 
-1. **推荐方式**: 双击运行 `start_gui.ps1` 文件（PowerShell脚本）
-2. 或者双击运行 `start_gui.bat` 文件（批处理脚本）
-3. 或者在命令行中执行：
-   - `powershell -ExecutionPolicy Bypass -File start_gui.ps1`（推荐）
+1. **推荐方式**: 双击运行 `start_gui.bat` 文件（批处理脚本）
+2. 或者在命令行中执行：
    - `python jwt_gui_integrated.py`（集成版，推荐）
 
 ### 基本流程
@@ -94,10 +92,9 @@ pip install PyJWT requests pycryptodomex cryptography
 
 ## 注意事项
 
-1. 本工具需要Python 3.x环境
+1. 本工具需要Python 3.6+环境
 2. 需要安装tkinter库（通常Python自带）
-3. 需要jwt_tool.py文件在同一目录下
-4. 某些功能可能需要额外的依赖库（如requests、pycryptodomex等）
+3. 某些功能可能需要额外的依赖库（如requests、pycryptodomex等）
 
 ## 系统要求
 
@@ -108,10 +105,11 @@ pip install PyJWT requests pycryptodomex cryptography
 ## 文件说明
 
 - `jwt_gui_integrated.py`: 集成版GUI（推荐），将jwt_tool.py的所有功能直接集成到GUI中
-- `start_gui.ps1`: 启动脚本（PowerShell，推荐）
 - `start_gui.bat`: 启动脚本（批处理）
 - `jwt_tool.py`: 原始JWT工具命令行版本
 - `README.md`: 说明文档
+- `requirements.txt`: 项目依赖列表
+- `test_jwt_gui.py`: 单元测试文件
 
 ## 故障排除
 
@@ -119,8 +117,7 @@ pip install PyJWT requests pycryptodomex cryptography
 
 1. Python是否正确安装
 2. tkinter库是否可用
-3. jwt_tool.py文件是否存在
-4. 所有依赖库是否已安装
+3. 所有依赖库是否已安装
 
 如果集成版GUI无法满足需求，可以尝试使用原始命令行版本jwt_tool.py。
 

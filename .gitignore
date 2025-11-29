@@ -60,3 +60,16 @@ Thumbs.db
 
 # Test files
 test_gui.py
+
+# JWT specific files
+*.jwt
+*.jwks
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dictionary files for cracking
+*.txt
+*.dic
+*.dict

@@ -6,6 +6,7 @@
 - 提出新功能建议
 - 提交代码改进
 - 改进文档
+- 添加测试用例
 
 ## 如何贡献
 
@@ -27,6 +28,7 @@
 - 功能描述
 - 使用场景
 - 预期效果
+- 可能的实现方式
 
 ### 提交代码
 
@@ -41,6 +43,43 @@
 - 请确保您的代码符合PEP 8规范
 - 添加必要的注释和文档字符串
 - 确保您的代码不会破坏现有功能
+- 为新功能添加适当的测试用例
+- 更新相关文档（如README.md、CHANGELOG.md等）
+
+### 测试
+
+在提交代码前，请确保：
+
+1. 所有现有测试通过
+2. 新功能有对应的测试用例
+3. GUI界面正常工作
+4. 代码没有明显的性能问题
+
+## 开发环境设置
+
+1. 克隆仓库：
+   ```bash
+   git clone https://github.com/yourusername/jwt-gui.git
+   cd jwt-gui
+   ```
+
+2. 创建虚拟环境：
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # 或
+   venv\Scripts\activate  # Windows
+   ```
+
+3. 安装依赖：
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. 运行测试：
+   ```bash
+   python test_jwt_gui.py
+   ```
 
 ## 许可证
 
