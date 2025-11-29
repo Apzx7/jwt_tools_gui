@@ -59,7 +59,7 @@
 
 1. 克隆仓库：
    ```bash
-   git clone https://github.com/yourusername/jwt-gui.git
+   git clone https://github.com/Apzx7/jwt-gui.git
    cd jwt-gui
    ```
 
